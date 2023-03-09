@@ -1,5 +1,10 @@
 # WorkerKiller::RufusScheduler
 
+[![Gem Version](https://badge.fury.io/rb/worker_killer-rufus_scheduler.svg)](https://badge.fury.io/rb/worker_killer-rufus_scheduler)
+[![CI](https://github.com/didww/worker_killer-rufus_scheduler/actions/workflows/tests.yml/badge.svg?branch=master)](https://github.com/didww/worker_killer-rufus_scheduler/actions/workflows/tests.yml)
+[![codecov](https://codecov.io/gh/didww/worker_killer-rufus_scheduler/branch/master/graph/badge.svg?token=67B3LRMNU7)](https://codecov.io/gh/didww/worker_killer-rufus_scheduler)
+[![Made in Ukraine](https://img.shields.io/badge/made_in-ukraine-ffd700.svg?labelColor=0057b7)](https://stand-with-ukraine.pp.ua)
+
 [Worker killer](https://github.com/RND-SOFT/worker_killer) extension for [Rufus::Scheduler](https://github.com/jmettraux/rufus-scheduler) standalone process.
 When process hits RAM limit killer tries to shutdown gracefully until timeout.
 After timeout it force scheduler to shutdown.
