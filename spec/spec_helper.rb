@@ -1,15 +1,25 @@
 # frozen_string_literal: true
 
-require 'worker_killer/rufus_scheduler'
 if ENV['COVERAGE'] == 'true'
   require 'simplecov'
   require 'simplecov-cobertura'
   SimpleCov.start do
-    load_profile 'test_frameworks'
     enable_coverage :branch
-    formatter SimpleCov::Formatter::CoberturaFormatter
+    formatter SimpleCov::Formatter::MultiFormatter.new(
+      [
+          SimpleCov::Formatter::CoberturaFormatter,
+          SimpleCov::Formatter::HTMLFormatter
+      ]
+    )
+    # formatter SimpleCov::Formatter::CoberturaFormatter
+    filters.clear
+    add_filter 'spec'
+    add_filter 'bin'
+    add_group 'Libraries', 'lib'
   end
 end
+
+require 'worker_killer/rufus_scheduler'
 
 RSpec.configure do |config|
   # Enable flags like --only-failures and --next-failure
