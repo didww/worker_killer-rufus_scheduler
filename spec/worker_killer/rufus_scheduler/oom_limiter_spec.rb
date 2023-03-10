@@ -4,8 +4,12 @@ require 'rufus/scheduler'
 
 RSpec.describe WorkerKiller::RufusScheduler::OOMLimiter do
   let(:one_mb) { 1024**2 }
+  let(:current_rss) { GetProcessMem.new.bytes.to_i }
 
-  before { @store = [] }
+  before do
+    @store = []
+    puts "rss #{current_rss}"
+  end
 
   # easy way to increase RAM in test
   def increase_ram(bytes)
@@ -13,29 +17,7 @@ RSpec.describe WorkerKiller::RufusScheduler::OOMLimiter do
   end
 
   it 'shutdowns scheduler after timeout hit' do
-    current_rss = GetProcessMem.new.bytes.to_i
-    puts "rss #{current_rss}"
     scheduler = Rufus::Scheduler.new
-
-    # once do something for a minute
-    once = { started: [], finished: [] }
-    scheduler.schedule_in('0') do
-      once[:started] << true
-      puts 'start: once do something for a 60 seconds'
-      sleep 60
-      puts 'finish: once do something for a 60 seconds'
-      once[:finished] << true
-    end
-    every = { started: [], finished: [] }
-    scheduler.every('3') do
-      every[:started] << true
-      puts 'start: every 3 seconds do something for 10 seconds with increase RAM by 11MB'
-      increase_ram(11 * one_mb)
-      puts "rss #{GetProcessMem.new.bytes.to_i}"
-      sleep 10
-      puts 'finish: every 3 seconds do something for 10 seconds with increase RAM by 11MB'
-      every[:finished] << true
-    end
 
     # every 3 seconds check that RAM usage less then 30mb.
     # if not stop scheduler with timeout 10
@@ -49,6 +31,26 @@ RSpec.describe WorkerKiller::RufusScheduler::OOMLimiter do
       max: limit
     )
 
+    # once do something for a minute
+    once = { started: [], finished: [] }
+    scheduler.schedule_in('0') do
+      once[:started] << true
+      puts 'start: once do something for a 60 seconds'
+      sleep 60
+      puts 'finish: once do something for a 60 seconds'
+      once[:finished] << true
+    end
+    every3 = { started: [], finished: [] }
+    scheduler.every('3') do
+      every3[:started] << true
+      puts 'start: every 3 seconds do something for 10 seconds with increase RAM by 11MB'
+      increase_ram(11 * one_mb)
+      puts "rss #{GetProcessMem.new.bytes.to_i}"
+      sleep 10
+      puts 'finish: every 3 seconds do something for 10 seconds with increase RAM by 11MB'
+      every3[:finished] << true
+    end
+
     time_before = Time.now.to_i
     scheduler_max_duration = 120
     scheduler.join(scheduler_max_duration)
@@ -56,24 +58,25 @@ RSpec.describe WorkerKiller::RufusScheduler::OOMLimiter do
 
     expect(duration).to be < scheduler_max_duration
     expect(duration).to be > killer_timeout
-    expect(once).to eq(started: [true], finished: [])
-    expect(every).to eq(started: [true, true, true], finished: [true, true, true])
+    expect(once[:started].size).to eq(1)
+    expect(once[:finished].size).to eq(0)
+    expect(every3[:started].size).to eq(3)
+    expect(every3[:finished].size).to eq(3)
   end
 
   it 'shutdowns scheduler before timeout hit' do
-    current_rss = GetProcessMem.new.bytes
     scheduler = Rufus::Scheduler.new
 
     # every 3 seconds do something for 10 seconds with increase RAM by 10MB
-    every = { started: [], finished: [] }
+    every3 = { started: [], finished: [] }
     scheduler.every('3') do
-      every[:started] << true
+      every3[:started] << true
       puts 'start: every 3 seconds do something for 10 seconds with increase RAM by 11MB'
       increase_ram(11 * one_mb)
       puts "rss #{GetProcessMem.new.bytes.to_i}"
       sleep 10
       puts 'finish: every 3 seconds do something for 10 seconds with increase RAM by 11MB'
-      every[:finished] << true
+      every3[:finished] << true
     end
 
     # every 3 seconds check that RAM usage less then 30mb.
@@ -95,23 +98,22 @@ RSpec.describe WorkerKiller::RufusScheduler::OOMLimiter do
 
     expect(duration).to be < scheduler_max_duration
     expect(duration).to be < killer_timeout
-    expect(every).to eq(started: [true, true, true], finished: [true, true, true])
+    expect(every3[:started].size).to eq(3)
+    expect(every3[:finished].size).to eq(3)
   end
 
   it 'does not shutdown scheduler' do
-    current_rss = GetProcessMem.new.bytes.to_i
-    puts "rss #{current_rss}"
     scheduler = Rufus::Scheduler.new
 
     # every 3 seconds do something for 10 seconds with increase RAM by 10MB
-    every = { started: [], finished: [] }
+    every3 = { started: [], finished: [] }
     scheduler.every('3') do
-      every[:started] << true
+      every3[:started] << true
       puts 'start: every 3 seconds do something for 10 seconds'
       puts "rss #{GetProcessMem.new.bytes.to_i}"
       sleep 10
       puts 'finish: every 3 seconds do something for 10 seconds'
-      every[:finished] << true
+      every3[:finished] << true
     end
 
     # every 3 seconds check that RAM usage less then 30mb.
@@ -131,5 +133,7 @@ RSpec.describe WorkerKiller::RufusScheduler::OOMLimiter do
     duration = Time.now.to_i - time_before
 
     expect(duration).to be >= scheduler_max_duration
+    expect(every3[:started].size).to be >= 6
+    expect(every3[:finished].size).to be >= 6
   end
 end
